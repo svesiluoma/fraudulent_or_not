@@ -29,6 +29,7 @@ PaySim simulates mobile money transactions based on a sample of real transaction
 
 I have downloaded the dataset from the net (the link above) and I have unzipped it to the same folder where my R script and the rmd file are. Here, I am reading the data from my folder. 
 
+<<<<<<< HEAD
 ```{r read_data, include=FALSE}
 fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
 ```
@@ -36,6 +37,12 @@ fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
 The dataset, here referred with a variable name fraud_or_not, has the following dimensions
 
 ```{r dim, echo=FALSE}
+=======
+The dataset, here referred with a variable name fraud_or_not, has the following dimensions
+
+```{r read_and_dim, echo=FALSE}
+fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
+>>>>>>> 0ee54eed2c92468750ec70677c777ee42690a3a0
 dim(fraud_or_not)
 ```
 
@@ -52,7 +59,11 @@ summary(fraud_or_not)
 
 The data has 11 columns which are:
 
+<<<<<<< HEAD
 ```{r explanations, echo=FALSE, warning = FALSE}
+=======
+```{r explanations, echo=FALSE}
+>>>>>>> 0ee54eed2c92468750ec70677c777ee42690a3a0
 # Showing the feature explanations as a table
 explanations <- data.frame(feature = "step", expl = "maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).")
 explanations <- bind_rows(explanations, data_frame(feature = "type", expl = "CASH-IN, CASH-OUT, DEBIT, PAYMENT and TRANSFER."))
