@@ -44,4 +44,22 @@ explanations <- bind_rows(explanations, data_frame(feature = "isFraud", expl = "
 explanations <- bind_rows(explanations, data_frame(feature = "isFlaggedFraud", expl = "The business model aims to control massive transfers from one account to another and flags illegal attempts. An illegal attempt in this dataset is an attempt to transfer more than 200.000 in a single transaction."))
 kable(explanations, caption = "Explanations of the features")
 
+# Study the specialties of the data
+# What amount of the rows are fraudulent
+mean(fraud_or_not$isFraud)
+# Percentage of non-fraudulent transactions
+(1-mean(fraud_or_not$isFraud))*100
+
+# Amount of transactions per type as histogram
+fraud_or_not %>% ggplot(aes(type , fill = type)) + geom_bar()
+
+# Amount of fraudulent transactions per type as histogram
+fraud_or_not %>% filter(isFraud==1) %>% 
+  ggplot(aes(type , fill = type)) + geom_bar()
+
+
+fraud_or_not %>% 
+  select(type, amount, oldbalanceOrg, newbalanceOrig, oldbalanceDest, newbalanceDest, isFraud) %>% 
+  filter(type=="CASH-IN") %>% head(10)
+
 
