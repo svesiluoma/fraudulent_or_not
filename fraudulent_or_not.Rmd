@@ -55,15 +55,13 @@ Let's look the data first as is.
 
 ```{r summary}
 summary(fraud_or_not)
+str(fraud_or_not)
+fraud_or_not %>% head()
 ```
 
 The data has 11 columns which are:
 
-<<<<<<< HEAD
 ```{r explanations, echo=FALSE, warning = FALSE}
-=======
-```{r explanations, echo=FALSE}
->>>>>>> 0ee54eed2c92468750ec70677c777ee42690a3a0
 # Showing the feature explanations as a table
 explanations <- data.frame(feature = "step", expl = "maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).")
 explanations <- bind_rows(explanations, data_frame(feature = "type", expl = "CASH-IN, CASH-OUT, DEBIT, PAYMENT and TRANSFER."))

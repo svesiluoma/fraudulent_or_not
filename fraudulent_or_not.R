@@ -25,8 +25,10 @@ fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
 # What are the dimensions of this data?
 dim(fraud_or_not)
 
-# Look the summary of this data
+# Look the summary,structure and first lines of this data
 summary(fraud_or_not)
+str(fraud_or_not)
+fraud_or_not %>% head()
 
 # Showing the feature explanations as a table
 explanations <- data.frame(feature = "step", expl = "maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).")
