@@ -2,7 +2,9 @@
 title: "Fraudulent or not?"
 author: "Sari Vesiluoma"
 date: "6 11 2019"
-output: pdf_document
+output: pdf_document:
+  toc: true
+  toc_depth: 2
 ---
 
 ```{r setup, include=FALSE}
@@ -75,7 +77,37 @@ The feature isFraud refers to a fraudulent transaction. The feature isFlaggedFra
 mean(fraud_or_not$isFraud)
 ```
 
-This means that `(1-mean(fraud_or_not$isFraud))*100` % of the transactions are non-fraudulent. We would get a very high accuracy if predicting that a transaction is always non-fraudulent. 
+This means that `r (1-mean(fraud_or_not$isFraud))*100` % of the transactions are non-fraudulent. We would get a very high accuracy if predicting that a transaction is always non-fraudulent. 
+
+The amount of transactions per type is described at the next histogram. The biggest amount being CASH_OUT transactions and the smallest amount being DEBIT transactions. 
+
+```{r amount_transactions}
+fraud_or_not %>% ggplot(aes(type , fill = type)) + geom_bar()
+```
+
+More interesting is actually how the fraudulent transactions are positioned among the transactions. As can be seen from the next histogram, only the categories CASH_OUT and TRANSFER have fraudulent transactions. 
+
+```{r fraudulent_trtypes}
+fraud_or_not %>% filter(isFraud==1) %>% 
+  ggplot(aes(type , fill = type)) + geom_bar()
+```
+
+For the prediction we need training and test sets. In this project those were created based on the fraud_or_not data the following way, checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
+```{r train_and_test}
+# Creating training and test sets
+set.seed(1234, sample.kind = "Rounding")
+test_index <- createDataPartition(y = fraud_or_not$isFraud, times = 1,
+                                  p = 0.2, list = FALSE)
+train_set <- fraud_or_not[-test_index,]
+test_set <- fraud_or_not[test_index,]
+# Checking the dimensions and prevalence of fraud in these sets
+dim(train_set)
+mean(train_set$isFraud == "1")
+dim(test_set)
+mean(test_set$isFraud == "1")
+```
+
+
 ## Results
 
 

@@ -57,9 +57,15 @@ fraud_or_not %>% ggplot(aes(type , fill = type)) + geom_bar()
 fraud_or_not %>% filter(isFraud==1) %>% 
   ggplot(aes(type , fill = type)) + geom_bar()
 
+# Creating training and test sets
+set.seed(1234, sample.kind = "Rounding")
+test_index <- createDataPartition(y = fraud_or_not$isFraud, times = 1,
+                                  p = 0.2, list = FALSE)
+train_set <- fraud_or_not[-test_index,]
+test_set <- fraud_or_not[test_index,]
 
-fraud_or_not %>% 
-  select(type, amount, oldbalanceOrg, newbalanceOrig, oldbalanceDest, newbalanceDest, isFraud) %>% 
-  filter(type=="CASH-IN") %>% head(10)
-
-
+# Checking the dimensions and prevalence of fraud in these sets
+dim(train_set)
+mean(train_set$isFraud == "1")
+dim(test_set)
+mean(test_set$isFraud == "1")
