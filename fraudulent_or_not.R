@@ -69,3 +69,17 @@ dim(train_set)
 mean(train_set$isFraud == "1")
 dim(test_set)
 mean(test_set$isFraud == "1")
+
+# Algorithm 1: quess that none of the transactions are fraud
+# Define mu_hat as a predition of no fraudulent transactions
+mu_hat <- replicate(length(test_set$isFraud), 0)
+# Check the results with a confusionMatrix - ensure the same levels to be used
+cm <- confusionMatrix(data = factor(mu_hat, 
+                                    levels=min(test_set$isFraud):max(test_set$isFraud)), 
+                      reference = as.factor(test_set$isFraud))
+cm
+# Store the results of this algorithm
+algorithm_results <- data.frame(method="1: Assume none is fraud", 
+                                accuracy=cm$overall['Accuracy'], 
+                                specificity=sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1"))
+

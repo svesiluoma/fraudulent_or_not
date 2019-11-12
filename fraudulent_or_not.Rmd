@@ -1,10 +1,9 @@
 ---
 title: "Fraudulent or not?"
 author: "Sari Vesiluoma"
-date: "6 11 2019"
-output: pdf_document:
-  toc: true
-  toc_depth: 2
+date: "12.11.2019"
+output: pdf_document
+
 ---
 
 ```{r setup, include=FALSE}
@@ -44,6 +43,7 @@ Next I will analyse the data and split it to training and test sets. I will use 
 
 
 ## Analysis
+### Understanding the data
 
 Let's look the data first as is. As can be seen from the summary below, there are e.g. no NA values which would need to be cleaned. Zero values do exist, but those might be correct values needed, because the data seems to include different kind of transactios, where different features are relevant and the others might be zero as a value.
 
@@ -92,6 +92,8 @@ fraud_or_not %>% filter(isFraud==1) %>%
   ggplot(aes(type , fill = type)) + geom_bar()
 ```
 
+### Training and test sets
+
 For the prediction we need training and test sets. In this project those were created based on the fraud_or_not data the following way, checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
 ```{r train_and_test}
 # Creating training and test sets
@@ -106,6 +108,31 @@ mean(train_set$isFraud == "1")
 dim(test_set)
 mean(test_set$isFraud == "1")
 ```
+
+### Machine learning
+
+Now we are ready to start trials with machine learning algorithms. To start with, we should get a pretty accurate results if guessing that none of the transactions are fraudulent. Let's try. 
+
+```{r all_nonfraud}
+# Algorithm 1: quess that none of the transactions are fraud
+# Define mu_hat as a predition of no fraudulent transactions
+mu_hat <- replicate(length(test_set$isFraud), 0)
+# Check the results with a confusionMatrix - ensure the same levels to be used
+cm <- confusionMatrix(data = factor(mu_hat, 
+                                    levels=min(test_set$isFraud):max(test_set$isFraud)), 
+                      reference = as.factor(test_set$isFraud))
+cm
+# Store the results of this algorithm
+algorithm_results <- data.frame(method="1: Assume none is fraud", 
+                                accuracy=cm$overall['Accuracy'], 
+                                specificity=sensitivity(factor(mu_hat), factor(test_set$isFraud), 
+                                                        positive= "1"))
+```
+
+As we can see from the confusion matrix, the accuracy is really high `r cm$overall['Accuracy']` but, the specificity is 0. In practice, this means that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have correctly predicted the fraudulent actions being fraudulent. 
+
+
+
 
 
 ## Results
