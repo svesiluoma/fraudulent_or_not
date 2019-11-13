@@ -76,20 +76,18 @@ mean(test_set$isFraud == "1")
 
 # Algorithm 1: quess that none of the transactions are fraud
 # Splitting the training and test data to X and y to make it easier to use those
-y_train <- train_set$isFraud
+y_train <- factor(train_set$isFraud)
 X_train <- train_set[,which(names(train_set) != "isFraud")]
-y_test <- test_set$isFraud
+y_test <- factor(test_set$isFraud)
 X_test <- test_set[,which(names(test_set) != "isFraud")]
 # Define mu_hat as a predition of no fraudulent transactions
-mu_hat <- replicate(length(y_test), 0)
+mu_hat <- factor(replicate(length(y_test), 0))
 # Check the results with a confusionMatrix - ensure the same levels to be used
-cm <- confusionMatrix(data = factor(mu_hat, 
-                                    levels=min(y_test):max(y_test)), 
-                      reference = as.factor(y_test))
+cm <- confusionMatrix(data = mu_hat, reference = y_test)
 cm
 # Store the results of this algorithm
 acc <- cm$overall[['Accuracy']]
-specif <- sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1")
+specif <- sensitivity(mu_hat, y_test, positive= "1")
 algorithm_results <- data.frame(method="1: Assume none is fraud", 
                                 accuracy=acc, specificity=specif)
 
@@ -101,7 +99,7 @@ glm_preds <- predict(train_glm, X_test)
 cm <- confusionMatrix(data = glm_preds, 
                       reference = as.factor(y_test))
 acc <- cm$overall[['Accuracy']]
-specif <- sensitivity(glm_preds, y_test), positive= "1")
+specif <- sensitivity(glm_preds, y_test, positive= "1")
 # Store the results of this algorithm
 algorithm_results <- bind_rows(algorithm_results, 
                                data_frame(method="2: Logistic regression", 

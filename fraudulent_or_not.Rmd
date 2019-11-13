@@ -95,7 +95,8 @@ fraud_or_not %>% filter(isFraud==1) %>%
 Because we know that fraudulent transactions are present only in these two transaction type categories, we will remove the data of all other categories to make processing smoother.
 
 ```{r remove}
-
+fraud_or_not <- fraud_or_not %>% filter(type == "CASH_OUT" | type == "TRANSFER")
+table(fraud_or_not$type)
 ```
 
 ### Training and test sets
@@ -122,20 +123,18 @@ Now we are ready to start trials with machine learning algorithms. To start with
 ```{r all_nonfraud}
 # Algorithm 1: quess that none of the transactions are fraud
 # Splitting the training and test data to X and y to make it easier to use those
-y_train <- train_set$isFraud
+y_train <- factor(train_set$isFraud)
 X_train <- train_set[,which(names(train_set) != "isFraud")]
-y_test <- test_set$isFraud
+y_test <- factor(test_set$isFraud)
 X_test <- test_set[,which(names(test_set) != "isFraud")]
 # Define mu_hat as a predition of no fraudulent transactions
-mu_hat <- replicate(length(y_test), 0)
+mu_hat <- factor(replicate(length(y_test), 0))
 # Check the results with a confusionMatrix - ensure the same levels to be used
-cm <- confusionMatrix(data = factor(mu_hat, 
-                                    levels=min(y_test):max(y_test)), 
-                      reference = as.factor(y_test))
+cm <- confusionMatrix(data = mu_hat, reference = y_test)
 cm
 # Store the results of this algorithm
 acc <- cm$overall[['Accuracy']]
-specif <- sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1")
+specif <- sensitivity(mu_hat, y_test, positive= "1")
 algorithm_results <- data.frame(method="1: Assume none is fraud", 
                                 accuracy=acc, specificity=specif)
 ```
@@ -144,9 +143,7 @@ As we can see from the confusion matrix, the accuracy is really high `r cm$overa
 
 Next, let's look what kind of a result we will gain using logistic regression. 
 
-```{r glm}
 
-```
 
 
 
