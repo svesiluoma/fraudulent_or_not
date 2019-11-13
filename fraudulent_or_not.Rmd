@@ -20,6 +20,12 @@ if(!require(readr)) install.packages("readr", repos = "http://cran.us.r-project.
 library(readr)
 if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.org")
 library(knitr)
+if(!require(MASS)) install.packages("MASS", repos = "http://cran.us.r-project.org")
+library(MASS)
+if(!require(gam)) install.packages("gam", repos = "http://cran.us.r-project.org")
+library(gam)
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
+library(randomForest)
 ```
 
 ## Introduction
