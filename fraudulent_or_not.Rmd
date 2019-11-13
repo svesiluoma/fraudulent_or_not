@@ -92,6 +92,12 @@ fraud_or_not %>% filter(isFraud==1) %>%
   ggplot(aes(type , fill = type)) + geom_bar()
 ```
 
+Because we know that fraudulent transactions are present only in these two transaction type categories, we will remove the data of all other categories to make processing smoother.
+
+```{r remove}
+
+```
+
 ### Training and test sets
 
 For the prediction we need training and test sets. In this project those were created based on the fraud_or_not data the following way, checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
@@ -115,22 +121,32 @@ Now we are ready to start trials with machine learning algorithms. To start with
 
 ```{r all_nonfraud}
 # Algorithm 1: quess that none of the transactions are fraud
+# Splitting the training and test data to X and y to make it easier to use those
+y_train <- train_set$isFraud
+X_train <- train_set[,which(names(train_set) != "isFraud")]
+y_test <- test_set$isFraud
+X_test <- test_set[,which(names(test_set) != "isFraud")]
 # Define mu_hat as a predition of no fraudulent transactions
-mu_hat <- replicate(length(test_set$isFraud), 0)
+mu_hat <- replicate(length(y_test), 0)
 # Check the results with a confusionMatrix - ensure the same levels to be used
 cm <- confusionMatrix(data = factor(mu_hat, 
-                                    levels=min(test_set$isFraud):max(test_set$isFraud)), 
-                      reference = as.factor(test_set$isFraud))
+                                    levels=min(y_test):max(y_test)), 
+                      reference = as.factor(y_test))
 cm
 # Store the results of this algorithm
+acc <- cm$overall[['Accuracy']]
+specif <- sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1")
 algorithm_results <- data.frame(method="1: Assume none is fraud", 
-                                accuracy=cm$overall['Accuracy'], 
-                                specificity=sensitivity(factor(mu_hat), factor(test_set$isFraud), 
-                                                        positive= "1"))
+                                accuracy=acc, specificity=specif)
 ```
 
 As we can see from the confusion matrix, the accuracy is really high `r cm$overall['Accuracy']` but, the specificity is 0. In practice, this means that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have correctly predicted the fraudulent actions being fraudulent. 
 
+Next, let's look what kind of a result we will gain using logistic regression. 
+
+```{r glm}
+
+```
 
 
 

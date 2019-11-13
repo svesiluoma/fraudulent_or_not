@@ -57,6 +57,10 @@ fraud_or_not %>% ggplot(aes(type , fill = type)) + geom_bar()
 fraud_or_not %>% filter(isFraud==1) %>% 
   ggplot(aes(type , fill = type)) + geom_bar()
 
+# Clearing away all other types than CASH_OUT and TRANSFER because in the other there is no fraudulent transactions
+fraud_or_not <- fraud_or_not %>% filter(type == "CASH_OUT" | type == "TRANSFER")
+table(fraud_or_not$type)
+
 # Creating training and test sets
 set.seed(1234, sample.kind = "Rounding")
 test_index <- createDataPartition(y = fraud_or_not$isFraud, times = 1,
@@ -71,15 +75,36 @@ dim(test_set)
 mean(test_set$isFraud == "1")
 
 # Algorithm 1: quess that none of the transactions are fraud
+# Splitting the training and test data to X and y to make it easier to use those
+y_train <- train_set$isFraud
+X_train <- train_set[,which(names(train_set) != "isFraud")]
+y_test <- test_set$isFraud
+X_test <- test_set[,which(names(test_set) != "isFraud")]
 # Define mu_hat as a predition of no fraudulent transactions
-mu_hat <- replicate(length(test_set$isFraud), 0)
+mu_hat <- replicate(length(y_test), 0)
 # Check the results with a confusionMatrix - ensure the same levels to be used
 cm <- confusionMatrix(data = factor(mu_hat, 
-                                    levels=min(test_set$isFraud):max(test_set$isFraud)), 
-                      reference = as.factor(test_set$isFraud))
+                                    levels=min(y_test):max(y_test)), 
+                      reference = as.factor(y_test))
 cm
 # Store the results of this algorithm
+acc <- cm$overall[['Accuracy']]
+specif <- sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1")
 algorithm_results <- data.frame(method="1: Assume none is fraud", 
-                                accuracy=cm$overall['Accuracy'], 
-                                specificity=sensitivity(factor(mu_hat), factor(test_set$isFraud), positive= "1"))
+                                accuracy=acc, specificity=specif)
+
+# Algorithm 2: Logistic regression model
+# Training & predicting logistic regression model
+train_glm <- train(X_train, y_train, method = "glm")
+glm_preds <- predict(train_glm, X_test)
+# Define accuracy and specificity
+cm <- confusionMatrix(data = glm_preds, 
+                      reference = as.factor(y_test))
+acc <- cm$overall[['Accuracy']]
+specif <- sensitivity(glm_preds, y_test), positive= "1")
+# Store the results of this algorithm
+algorithm_results <- bind_rows(algorithm_results, 
+                               data_frame(method="2: Logistic regression", 
+                                accuracy=acc, 
+                                specificity=specif))
 
