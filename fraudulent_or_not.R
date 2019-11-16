@@ -36,6 +36,7 @@ summary(fraud_or_not)
 str(fraud_or_not)
 fraud_or_not %>% head()
 
+
 # Showing the feature explanations as a table
 explanations <- data.frame(feature = "step", expl = "maps a unit of time in the real world. In this case 1 step is 1 hour of time. Total steps 744 (30 days simulation).")
 explanations <- bind_rows(explanations, data_frame(feature = "type", expl = "CASH-IN, CASH-OUT, DEBIT, PAYMENT and TRANSFER."))
@@ -51,8 +52,24 @@ explanations <- bind_rows(explanations, data_frame(feature = "isFlaggedFraud", e
 kable(explanations, caption = "Explanations of the features")
 
 # Study the specialties of the data
+
+# Studying nameOrig and nameDest - potential problem: too many values to be treated as and factor
+n_distinct(fraud_or_not$nameOrig)
+n_distinct(fraud_or_not$nameDest)
+
+# nameOrig distinct nearly as many as all -> remove
+fraud_or_not <- subset(fraud_or_not, select = -c(nameOrig))
+
+# nameDest quite many values to be treated as a factor - what if using only the first letter?
+fraud_or_not <- fraud_or_not %>% mutate(dest = str_sub(nameDest, 1, 1))
+n_distinct(fraud_or_not$dest)
+
+# dest has two values, so using it and dropping the nameDest not to have too many factors
+fraud_or_not <- subset(fraud_or_not, select = -c(nameDest))
+
 # What amount of the rows are fraudulent
 mean(fraud_or_not$isFraud)
+
 # Percentage of non-fraudulent transactions
 (1-mean(fraud_or_not$isFraud))*100
 
@@ -67,12 +84,26 @@ fraud_or_not %>% filter(isFraud==1) %>%
 fraud_or_not <- fraud_or_not %>% filter(type == "CASH_OUT" | type == "TRANSFER")
 table(fraud_or_not$type)
 
-# Creating training and test sets
-set.seed(1234, sample.kind = "Rounding")
+# Creating training and test sets - to have big enough temp to have big enough test_set
+set.seed(28, sample.kind = "Rounding")
 test_index <- createDataPartition(y = fraud_or_not$isFraud, times = 1,
                                   p = 0.2, list = FALSE)
 train_set <- fraud_or_not[-test_index,]
 test_set <- fraud_or_not[test_index,]
+
+# Remove later
+table(fraud_or_not$dest)
+table(train_set$dest)
+table(test_set$dest)
+
+# Ensuring that nameOrig and nameDest in test_set are also in train_set
+#test_set <- temp %>% 
+#  semi_join(train_set, by = "nameOrig") %>%
+#  semi_join(train_set, by = "nameDest")
+
+# Add rows removed from test_set back into train_set set
+#removed <- anti_join(temp, test_set)
+#train_set <- rbind(train_set, removed)
 
 # Checking the dimensions and prevalence of fraud in these sets
 dim(train_set)
@@ -80,12 +111,13 @@ mean(train_set$isFraud == "1")
 dim(test_set)
 mean(test_set$isFraud == "1")
 
+#####  THE PDF INCLUDES not changed ROWS THIS FAR
 # Algorithm 1: quess that none of the transactions are fraud
 # Splitting the training and test data to X and y to make it easier to use those
-y_train <- factor(train_set$isFraud)
-X_train <- train_set[,which(names(train_set) != "isFraud")]
-y_test <- factor(test_set$isFraud)
-X_test <- test_set[,which(names(test_set) != "isFraud")]
+y_train <- as.factor(train_set$isFraud)
+X_train <- as.data.frame(train_set[,which(names(train_set) != "isFraud")])
+y_test <- as.factor(test_set$isFraud)
+X_test <- as.data.frame(test_set[,which(names(test_set) != "isFraud")])
 # Define mu_hat as a predition of no fraudulent transactions
 mu_hat <- factor(replicate(length(y_test), 0))
 # Check the results with a confusionMatrix - ensure the same levels to be used
@@ -98,6 +130,29 @@ algorithm_results <- data.frame(method="1: Assume none is fraud",
                                 accuracy=acc, specificity=specif)
 
 #####  THE PDF INCLUDES ROWS THIS FAR
+# Temporary setup
+#ZX_train <- X_train[1:100,]
+#Zy_train <- y_train[1:100]
+#ZX_test <- X_test[1:100,]
+#Zy_test <- y_test[1:100]
+
+#Ztrain_set <- train_set[1:100,]
+#ztest_set <- test_set[1:100,]
+
+# X_train$xlevels$nameOrig <- union(X_train$xlevels$nameOrig, levels(X_test$nameOrig))
+
+# Algorithm 2: Logistic regression model
+#fit_glm <- glm(isFraud ~., data=Ztrain_set, family="binomial")
+#varImp(fit_glm, scale=FALSE)
+#p_hat_glm <- predict(fit_glm, test_set$isFraud)
+#summary(fit_glm)
+
+#train_glm <- train(isFraud ~ ., method = "glm", data = train_set) 
+#y_hat_glm <- predict(train_glm, test_set$isFraud, type = "raw") 
+
+str(X_train)
+summary(X_train)
+table(X_train$dest)
 
 # Algorithm 2: Logistic regression model
 # Training & predicting
