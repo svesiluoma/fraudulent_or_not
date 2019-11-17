@@ -1,7 +1,7 @@
 ---
 title: "Fraudulent or not?"
 author: "Sari Vesiluoma"
-date: "12.11.2019"
+date: "17.11.2019"
 output: pdf_document
 
 ---
@@ -22,10 +22,6 @@ if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.
 library(knitr)
 if(!require(MASS)) install.packages("MASS", repos = "http://cran.us.r-project.org")
 library(MASS)
-if(!require(gam)) install.packages("gam", repos = "http://cran.us.r-project.org")
-library(gam)
-if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
-library(randomForest)
 ```
 
 ## Introduction
@@ -34,7 +30,7 @@ The goal in this project is to learn how to predict a fraudulent financial trans
 
 PaySim simulates mobile money transactions based on a sample of real transactions extracted from one month of financial logs from a mobile money service implemented in an African country. The synthetic dataset is scaled down 1/4 of the original dataset.
 
-I have downloaded the dataset from the net (the link above) and I have unzipped it to the same folder where my R script and the rmd file are. Here, I am reading the data from my folder. 
+I have downloaded the dataset from the net (the link above) and I have unzipped it to the same folder where my R script and the rmd file are. This csv file is also available in the GitHub repository, where this rmd and r scripts are too. 
 ```{r read_data, include=FALSE}
 fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
 ```
@@ -45,13 +41,13 @@ The dataset, here referred with a variable name fraud_or_not, has the following 
 dim(fraud_or_not)
 ```
 
-Next I will analyse the data and split it to training and test sets. I will use different machine learning algorithms to try to predict which transaction is fraudulent and which not. In this kind of a case the speciality is that the amount of fraudulent transactions is very minor compared to the amount of non-fraudulent transactions, as we will see. 
+Next, I will analyse the data and split it to training and test sets. I will use different machine learning algorithms to predict which transaction is fraudulent and which not. In this kind of a case the speciality is that the amount of fraudulent transactions is very minor compared to the amount of non-fraudulent transactions, as we will see. 
 
 
 ## Analysis
 ### Understanding the data
 
-Let's look the data first as is. As can be seen from the summary below, there are e.g. no NA values which would need to be cleaned. Zero values do exist, but those might be correct values needed, because the data seems to include different kind of transactios, where different features are relevant and the others might be zero as a value.
+Let's look the data first as is. As can be seen from the summary below, there are e.g. no NA values which would need to be cleaned. Zero values do exist, but those seem to be correct values needed, because the data seems to include different kind of transactios, where different features are relevant and the others might be zero as a value.
 
 ```{r summary}
 summary(fraud_or_not)
@@ -77,7 +73,30 @@ explanations <- bind_rows(explanations, data_frame(feature = "isFlaggedFraud", e
 kable(explanations, caption = "Explanations of the features")
 ```
 
-The feature isFraud refers to a fraudulent transaction. The feature isFlaggedFraud refers just to a transaction, which is a suspect for a fraud because it is an attempt to transfer more than 200 000. Normally the amount of fraudulent transactions is very small compared to the non-fraudulent transactions. That is the case here also and the prevalence of a fraud is close to one from thousand transactions. 
+The feature isFraud refers to a fraudulent transaction and is the "lable" we are predicting. The feature isFlaggedFraud refers to a transaction, which is a suspect for a fraud because it is an attempt to transfer a bigger amount than 200 000. The amount of fraudulent transactions is very small compared to the amount of non-fraudulent transactions.
+
+When studying the data, there seem to be two variables which may have a potential challenge. nameOrig and nameDest are both char having many values and in some algorithms those would be treated as factors, actually as really many of those. Let's first check the amount of unique values in these.
+
+```{r study_names}
+n_distinct(fraud_or_not$nameOrig)
+n_distinct(fraud_or_not$nameDest)
+```
+
+Like can be seen from above, the amount of unique values of name Orig is very close to the amount of rows in this data. Let's remove this field, because it does not have much explanatory value. 
+
+```{r rem_nameOrig}
+fraud_or_not <- subset(fraud_or_not, select = -c(nameOrig))
+```
+
+The amount of nameDest is smaller even though being still quite high. Clearly, there would be too many factors based on this feature. The format of the values seems to have first either letter C or M and then a number. Let's replace the current values with a feature having only the first letter. 
+
+```{r nameDest}
+fraud_or_not <- fraud_or_not %>% mutate(dest = str_sub(nameDest, 1, 1))
+fraud_or_not <- subset(fraud_or_not, select = -c(nameDest))
+n_distinct(fraud_or_not$dest)
+```
+
+Let's now check the amount of fraudulent transactions among this data. It is:
 
 ```{r prevalence_fraud}
 mean(fraud_or_not$isFraud)
@@ -98,23 +117,63 @@ fraud_or_not %>% filter(isFraud==1) %>%
   ggplot(aes(type , fill = type)) + geom_bar()
 ```
 
-Because we know that fraudulent transactions are present only in these two transaction type categories, we will remove the data of all other categories to make processing smoother.
+Because we know that fraudulent transactions are present only in these two transaction type categories, we will remove the data of all other categories to make the processing smoother.
 
 ```{r remove}
 fraud_or_not <- fraud_or_not %>% filter(type == "CASH_OUT" | type == "TRANSFER")
 table(fraud_or_not$type)
 ```
 
+After this clean-up, it looks that the created feature dest has anymore one value, meaning that it will not contribute in predicting. Let's remove it and let's check what we have left now. 
+
+```{r dest_away}
+table(fraud_or_not$dest)
+fraud_or_not <- subset(fraud_or_not, select = -c(dest))
+str(fraud_or_not)
+```
+
+As we can see, most of the features are now numeric, with one exception. Let's replace the feature type (values: TRANSFER/CASH_OUT) with a numeric feature, where TRANSFER = 1 and CASH_OUT = 2. After that. Let's see what the resulting features look like. 
+
+```{r chr_away}
+# Replacing chr type with numeric field typeNbr, where TRANSFER = 1 and CASH_OUT = 2
+fraud_or_not <- fraud_or_not %>% mutate(typeNbr = ifelse(type == "TRANSFER", 1, 2))
+# Removing the type field
+fraud_or_not <- subset(fraud_or_not, select = -c(type))
+str(fraud_or_not)
+```
+
+The data includes now totally 6,3 M rows. That is quite much for this project to be run on an ordinary laptop. The amount of data will need to be dramatically reduced. Because the most critical thing would be to find the fraudulent transactions and the amount of those is very minor, let's include all those to the reduced set. In addition, I will include 100 000 lines of non-fraudulent actions randomly selected. 
+
+```{r remove_part}
+# Data still too big to be efficiently processed.
+# Amount of fraudulent transactions - all to be included
+reduced_set <- fraud_or_not %>% filter(isFraud == 1)
+dim(reduced_set)
+# Amount of non-fraud
+non_fraud <- fraud_or_not %>% filter(isFraud == 0)
+dim(non_fraud)
+#  a Select a sample of 100000 from the non_fraud
+set.seed(14, sample.kind = "Rounding")
+non_fraud_selected <- sample_n(non_fraud, 100000)
+dim(non_fraud_selected)
+# Combine the selected non-fraud to the reduced set
+reduced_set <- rbind(reduced_set, non_fraud_selected)
+dim(reduced_set)
+```
+
+Now, we are ready to start working with machine learning algorithms.
+
 ### Training and test sets
 
-For the prediction we need training and test sets. In this project those were created based on the fraud_or_not data the following way, checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
+For the prediction, we need training and test sets. In this project those were created based on the reduced_set data the following way, and checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
+
 ```{r train_and_test}
-# Creating training and test sets
-set.seed(1234, sample.kind = "Rounding")
-test_index <- createDataPartition(y = fraud_or_not$isFraud, times = 1,
+# Creating training and test sets - to have big enough temp to have big enough test_set
+set.seed(28, sample.kind = "Rounding")
+test_index <- createDataPartition(y = reduced_set$isFraud, times = 1,
                                   p = 0.2, list = FALSE)
-train_set <- fraud_or_not[-test_index,]
-test_set <- fraud_or_not[test_index,]
+train_set <- reduced_set[-test_index,]
+test_set <- reduced_set[test_index,]
 # Checking the dimensions and prevalence of fraud in these sets
 dim(train_set)
 mean(train_set$isFraud == "1")
@@ -129,12 +188,16 @@ Now we are ready to start trials with machine learning algorithms. To start with
 ```{r all_nonfraud}
 # Algorithm 1: quess that none of the transactions are fraud
 # Splitting the training and test data to X and y to make it easier to use those
-y_train <- factor(train_set$isFraud)
-X_train <- train_set[,which(names(train_set) != "isFraud")]
-y_test <- factor(test_set$isFraud)
-X_test <- test_set[,which(names(test_set) != "isFraud")]
+y_train <- as.factor(train_set$isFraud)
+X_train <- as.data.frame(train_set[,which(names(train_set) != "isFraud")])
+y_test <- as.factor(test_set$isFraud)
+X_test <- as.data.frame(test_set[,which(names(test_set) != "isFraud")])
+
 # Define mu_hat as a predition of no fraudulent transactions
 mu_hat <- factor(replicate(length(y_test), 0))
+# Changing the levels of mu_hat to match with y_test
+levels(mu_hat) <- levels(y_test)
+
 # Check the results with a confusionMatrix - ensure the same levels to be used
 cm <- confusionMatrix(data = mu_hat, reference = y_test)
 cm
@@ -145,16 +208,76 @@ algorithm_results <- data.frame(method="1: Assume none is fraud",
                                 accuracy=acc, specificity=specif)
 ```
 
-As we can see from the confusion matrix, the accuracy is really high `r cm$overall['Accuracy']` but, the specificity is 0. In practice, this means that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have correctly predicted the fraudulent actions being fraudulent. 
+As we can see from the confusion matrix, the accuracy is really high `r acc` but, the specificity is `r specif`. In practice, this means, that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have as correctly as possible predicted the fraudulent actions being fraudulent. 
 
 Next, let's look what kind of a result we will gain using logistic regression. 
 
+```{r logreg}
+# Algorithm 2: Logistic regression model
+# Training & predicting
+train_glm <- train(X_train, y_train, method = "glm")
+glm_preds <- factor(predict(train_glm, X_test))
+# Define accuracy and specificity
+cm <- confusionMatrix(data = glm_preds,reference = y_test)
+acc <- cm$overall[['Accuracy']]
+acc
+specif <- sensitivity(glm_preds, y_test, positive= "1")
+specif
 
+# Store the results of this algorithm
+algorithm_results <- bind_rows(algorithm_results, 
+                               data_frame(method="2: Logistic regression", 
+                                accuracy=acc, 
+                                specificity=specif))
 
+```
 
+It's getting better. What about using LDA?
 
+```{r lda}
+# Algorithm 3: LDA
+# Training & predicting
+train_lda <- train(X_train, y_train, method = "lda")
+lda_preds <- factor(predict(train_lda, X_test))
+# Define accuracy and specificity
+cm <- confusionMatrix(data = lda_preds,reference = y_test)
+acc <- cm$overall[['Accuracy']]
+specif <- sensitivity(lda_preds, y_test, positive= "1")
+# Store the results of this algorithm
+algorithm_results <- bind_rows(algorithm_results, 
+                               data_frame(method="3: LDA", 
+                                          accuracy=acc, 
+                                          specificity=specif))
+```
+
+Not so convinsing, so still to predict with k nearest neighbours algorithm. The tuning parameters I originally used included much wider set of values, but here, and based on my earlier results I selected one value below and over the best tune to shorten the time to produce this report. Let's see the results of knn.
+
+´´´{r knn}
+# Algorithm 4: K-nearest neighbors
+# Training & predicting - trials with k values from 3 to 21 (step: 2)
+set.seed(1234, sample.kind = "Rounding")
+# Original tuning <- data.frame(k=seq(3, 21, 2))
+tuning <- data.frame(k=seq(9, 13, 2))
+train_knn <- train(X_train, y_train, method = "knn", tuneGrid = tuning)
+train_knn$bestTune
+knn_preds <- factor(predict(train_knn, X_test))
+# Define accuracy and specificity
+cm <- confusionMatrix(data = knn_preds,reference = y_test)
+acc <- cm$overall[['Accuracy']]
+specif <- sensitivity(knn_preds, y_test, positive= "1")
+# Store the results of this algorithm
+algorithm_results <- bind_rows(algorithm_results, 
+                               data_frame(method="4: knn", 
+                                          accuracy=acc, 
+                                          specificity=specif))
+```
 
 ## Results
 
+The results over all algorithms used here look the following:
+
+´´´{r results}
+algorithm_results
+```
 
 ## Conclusion
