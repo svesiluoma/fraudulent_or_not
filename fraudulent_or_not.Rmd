@@ -1,7 +1,7 @@
 ---
 title: "Fraudulent or not?"
 author: "Sari Vesiluoma"
-date: "17.11.2019"
+date: "18.11.2019"
 output: pdf_document
 
 ---
@@ -10,7 +10,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, results = 'hide'}
+```{r libraries, message=FALSE}
 # Ensuring having required libraries
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 library(tidyverse)
@@ -32,8 +32,9 @@ The goal in this project is to learn how to predict a fraudulent financial trans
 
 PaySim simulates mobile money transactions based on a sample of real transactions extracted from one month of financial logs from a mobile money service implemented in an African country. The synthetic dataset is scaled down 1/4 of the original dataset.
 
-I have downloaded the dataset from the net (the link above) and I have unzipped it to the same folder where my R script and the rmd file are. This csv file is also available in the GitHub repository, where this rmd and r scripts are too. 
-```{r read_data, include=FALSE}
+I have downloaded the dataset from the net (the link above) and I have unzipped it to the same folder where my R script and the rmd file are. This csv file is also available in the GitHub repository, where this rmd and r scripts are. To start with the data, I read it from the csv-file.
+
+```{r read_data}
 fraud_or_not <- read_csv("PS_20174392719_1491204439457_log.csv")
 ```
 
@@ -75,16 +76,16 @@ explanations <- bind_rows(explanations, data_frame(feature = "isFlaggedFraud", e
 kable(explanations, caption = "Explanations of the features")
 ```
 
-The feature isFraud refers to a fraudulent transaction and is the "lable" we are predicting. The feature isFlaggedFraud refers to a transaction, which is a suspect for a fraud because it is an attempt to transfer a bigger amount than 200 000. The amount of fraudulent transactions is very small compared to the amount of non-fraudulent transactions.
+The feature isFraud refers to a fraudulent transaction and is the "label" we are predicting. The feature isFlaggedFraud refers to a transaction, which is a suspect for a fraud because it is an attempt to transfer a bigger amount than 200 000. 
 
-When studying the data, there seem to be two variables which may have a potential challenge. nameOrig and nameDest are both char having many values and in some algorithms those would be treated as factors, actually as really many of those. Let's first check the amount of unique values in these.
+When studying the data, there seem to be two variables which may have a potential challenge. nameOrig and nameDest are both of type char having many values and in some algorithms those would be treated as factors, actually as really many of those. Let's first check the amount of unique values in these.
 
 ```{r study_names}
 n_distinct(fraud_or_not$nameOrig)
 n_distinct(fraud_or_not$nameDest)
 ```
 
-Like can be seen from above, the amount of unique values of name Orig is very close to the amount of rows in this data. Let's remove this field, because it does not have much explanatory value. 
+Like can be seen from above, the amount of unique values of nameOrig is very close to the amount of rows in this data. Let's remove this field, because it does not have much explanatory value. 
 
 ```{r rem_nameOrig}
 fraud_or_not <- subset(fraud_or_not, select = -c(nameOrig))
@@ -126,7 +127,7 @@ fraud_or_not <- fraud_or_not %>% filter(type == "CASH_OUT" | type == "TRANSFER")
 table(fraud_or_not$type)
 ```
 
-After this clean-up, it looks that the created feature dest has anymore one value, meaning that it will not contribute in predicting. Let's remove it and let's check what we have left now. 
+After this clean-up, it looks that the created feature dest has left only one value, meaning that it will not contribute in predicting. Let's remove it and let's check what we have left now. 
 
 ```{r dest_away}
 table(fraud_or_not$dest)
@@ -134,7 +135,7 @@ fraud_or_not <- subset(fraud_or_not, select = -c(dest))
 str(fraud_or_not)
 ```
 
-As we can see, most of the features are now numeric, with one exception. Let's replace the feature type (values: TRANSFER/CASH_OUT) with a numeric feature, where TRANSFER = 1 and CASH_OUT = 2. After that. Let's see what the resulting features look like. 
+As we can see, most of the features are now numeric, with one exception. Let's replace the feature type (values: TRANSFER/CASH_OUT) with a numeric feature, where TRANSFER = 1 and CASH_OUT = 2. Let's see what the resulting features look like. 
 
 ```{r chr_away}
 # Replacing chr type with numeric field typeNbr, where TRANSFER = 1 and CASH_OUT = 2
@@ -146,7 +147,7 @@ str(fraud_or_not)
 
 The data includes now totally 6,3 M rows. That is quite much for this project to be run on an ordinary laptop. The amount of data will need to be dramatically reduced. Because the most critical thing would be to find the fraudulent transactions and the amount of those is very minor, let's include all those to the reduced set. In addition, I will include 100 000 lines of non-fraudulent actions randomly selected. 
 
-```{r remove_part}
+```{r remove_part, warning=FALSE}
 # Data still too big to be efficiently processed.
 # Amount of fraudulent transactions - all to be included
 reduced_set <- fraud_or_not %>% filter(isFraud == 1)
@@ -163,13 +164,13 @@ reduced_set <- rbind(reduced_set, non_fraud_selected)
 dim(reduced_set)
 ```
 
-Now, we are ready to start working with machine learning algorithms.
+Now we are ready to start working with machine learning algorithms.
 
 ### Training and test sets
 
-For the prediction, we need training and test sets. In this project those were created based on the reduced_set data the following way, and checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 
+For the prediction, we need training and test sets. In this project those were created based on the reduced_set data the following way, and checking that the dimensions of the resulting sets are correct and that the prevalence of fraudulent transactions is similar between the cases. 20 % of the data was used for the test set. 
 
-```{r train_and_test}
+```{r train_and_test, warning=FALSE}
 # Creating training and test sets - to have big enough temp to have big enough test_set
 set.seed(28, sample.kind = "Rounding")
 test_index <- createDataPartition(y = reduced_set$isFraud, times = 1,
@@ -210,7 +211,7 @@ algorithm_results <- data.frame(method="1: Assume none is fraud",
                                 accuracy=acc, specificity=specif)
 ```
 
-As we can see from the confusion matrix, the accuracy is really high `r acc` but, the specificity is `r specif`. In practice, this means, that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have as correctly as possible predicted the fraudulent actions being fraudulent. 
+As we can see from the confusion matrix, the accuracy is high `r acc` but, the specificity is `r specif`. In practice, this means, that we have failed in predicting any of the frauds. It is important to notice, that in addition to following accuracy getting better, we have to improve radically the specificity, meaning that we will have as correctly as possible predicted the fraudulent actions being fraudulent. 
 
 Next, let's look what kind of a result we will gain using logistic regression. 
 
@@ -233,7 +234,7 @@ algorithm_results <- bind_rows(algorithm_results,
 
 ```
 
-Now also the specificity starts to have some real value. What about using LDA?
+Now, also the specificity starts to have some real value. What about using LDA?
 
 ```{r lda_alg, warning=FALSE}
 # Algorithm 3: LDA
@@ -243,7 +244,9 @@ lda_preds <- factor(predict(train_lda, X_test))
 # Define accuracy and specificity
 cm <- confusionMatrix(data = lda_preds,reference = y_test)
 acc <- cm$overall[['Accuracy']]
+acc
 specif <- sensitivity(lda_preds, y_test, positive= "1")
+specif
 # Store the results of this algorithm
 algorithm_results <- bind_rows(algorithm_results, 
                                data_frame(method="3: LDA", 
@@ -252,9 +255,9 @@ algorithm_results <- bind_rows(algorithm_results,
 
 ```
 
-Not so convincing, so still to predict with k nearest neighbours algorithm. The tuning parameters I originally used included much wider set of values, but here, and based on my earlier results I selected one value below and over the best tune to shorten the time to produce this report. Let's see the results of knn.
+Not so convincing, so next to predict with k nearest neighbours algorithm. The tuning parameters I originally used included a wider set of values, but here, and based on my earlier results I selected one value below and over the best tune to shorten the time to produce this report. Let's see the results of knn.
 
-´´´{r knn, warning=FALSE}
+```{r knn, warning=FALSE}
 # Algorithm 4: K-nearest neighbors
 # Training & predicting - trials with k values from 3 to 21 (step: 2)
 set.seed(1234, sample.kind = "Rounding")
@@ -275,13 +278,14 @@ algorithm_results <- bind_rows(algorithm_results,
                                           specificity=specif))
 ```
 
-Still one other algorithm
+That looks better again. Still one another algorithm, this time random forest. Here, in this report, I use only the mtry value 9 to shorten the report creation time. That was the best value in my original tuning.
 
-```{r rf}
+```{r rf, warning=FALSE}
 # Algorithm 5: Random forest
 # Training & predicting - trials with mtry values from 3 to 9 (step: 2)
 set.seed(1234, sample.kind = "Rounding")
-tuning <- data.frame(mtry=seq(3, 9, 2))
+# Original tuning <- data.frame(mtry=seq(3, 9, 2))
+tuning <- data.frame(mtry=seq(9, 9, 2))
 train_rf <- train(X_train, y_train, method = "rf", tuneGrid = tuning, importance=TRUE)
 train_rf$bestTune
 rf_preds <- factor(predict(train_rf, X_test))
@@ -297,6 +301,8 @@ algorithm_results <- bind_rows(algorithm_results,
                                           specificity=specif))
 ```
 
+Now the result looks very good from both, accuracy and specificity view.
+
 ## Results
 
 The results over all algorithms used here look the following:
@@ -305,4 +311,13 @@ The results over all algorithms used here look the following:
 algorithm_results
 ```
 
+Time used to do this and to create this report was long because of a big amount of data and an ordinary laptop, but using more time also resulted better results so it was worth it. The best results were gained based on the random forest algorithm. 
+
+
 ## Conclusion
+
+In fraudulence identification, it is important to notice, that the amount of fraudulent transactions is normally extremely minor compared to the amount of non-fraudulent transactions. This results the finding that if we'll predict that we will have no fraudulent transactions, we will get a very high accuracy already by that. At the same time we do not identify any of the real fraudulent transactions. 
+
+Because of the small amount of fraudulent transactions, also quite much computer power would be needed in identifying the fraudulent transactions. In this project, using huge data was not possible and even then, the time used for calculating the results was nearly days. In this report I have used directly closer to the best tune tunings trying to reduce the time I used when trying the algorithms. As a result the longest taking algorithm, the random forest provided the best results, the accuracy being close to 100 % and also the specificity being close to 98 %. To get even better results, a bigger amount of data could be used and perhaps looking still a bit to the tuning of the random forest. Now the best tune was 9 which was the highest figure I used in my tuning. If having more time, also some bigger mtry values could be tested. 
+
+Very interesting project, where I learned a lot of data cleaning and feature engineering. I have still many ideas how to improve and how to learn more, but now trying to complete this task and course to have time to continue with other trials. 
