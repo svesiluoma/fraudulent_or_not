@@ -10,7 +10,7 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, include=FALSE}
+```{r libraries, results = 'hide'}
 # Ensuring having required libraries
 if(!require(tidyverse)) install.packages("tidyverse", repos = "http://cran.us.r-project.org")
 library(tidyverse)
@@ -22,6 +22,8 @@ if(!require(knitr)) install.packages("knitr", repos = "http://cran.us.r-project.
 library(knitr)
 if(!require(MASS)) install.packages("MASS", repos = "http://cran.us.r-project.org")
 library(MASS)
+if(!require(randomForest)) install.packages("randomForest", repos = "http://cran.us.r-project.org")
+library(randomForest)
 ```
 
 ## Introduction
@@ -212,7 +214,7 @@ As we can see from the confusion matrix, the accuracy is really high `r acc` but
 
 Next, let's look what kind of a result we will gain using logistic regression. 
 
-```{r logreg}
+```{r logreg, warning=FALSE}
 # Algorithm 2: Logistic regression model
 # Training & predicting
 train_glm <- train(X_train, y_train, method = "glm")
@@ -223,7 +225,6 @@ acc <- cm$overall[['Accuracy']]
 acc
 specif <- sensitivity(glm_preds, y_test, positive= "1")
 specif
-
 # Store the results of this algorithm
 algorithm_results <- bind_rows(algorithm_results, 
                                data_frame(method="2: Logistic regression", 
@@ -232,9 +233,9 @@ algorithm_results <- bind_rows(algorithm_results,
 
 ```
 
-It's getting better. What about using LDA?
+Now also the specificity starts to have some real value. What about using LDA?
 
-```{r lda}
+```{r lda_alg, warning=FALSE}
 # Algorithm 3: LDA
 # Training & predicting
 train_lda <- train(X_train, y_train, method = "lda")
@@ -248,11 +249,12 @@ algorithm_results <- bind_rows(algorithm_results,
                                data_frame(method="3: LDA", 
                                           accuracy=acc, 
                                           specificity=specif))
+
 ```
 
-Not so convinsing, so still to predict with k nearest neighbours algorithm. The tuning parameters I originally used included much wider set of values, but here, and based on my earlier results I selected one value below and over the best tune to shorten the time to produce this report. Let's see the results of knn.
+Not so convincing, so still to predict with k nearest neighbours algorithm. The tuning parameters I originally used included much wider set of values, but here, and based on my earlier results I selected one value below and over the best tune to shorten the time to produce this report. Let's see the results of knn.
 
-´´´{r knn}
+´´´{r knn, warning=FALSE}
 # Algorithm 4: K-nearest neighbors
 # Training & predicting - trials with k values from 3 to 21 (step: 2)
 set.seed(1234, sample.kind = "Rounding")
@@ -261,13 +263,36 @@ tuning <- data.frame(k=seq(9, 13, 2))
 train_knn <- train(X_train, y_train, method = "knn", tuneGrid = tuning)
 train_knn$bestTune
 knn_preds <- factor(predict(train_knn, X_test))
-# Define accuracy and specificity
 cm <- confusionMatrix(data = knn_preds,reference = y_test)
 acc <- cm$overall[['Accuracy']]
+acc
 specif <- sensitivity(knn_preds, y_test, positive= "1")
+specif
 # Store the results of this algorithm
 algorithm_results <- bind_rows(algorithm_results, 
                                data_frame(method="4: knn", 
+                                          accuracy=acc, 
+                                          specificity=specif))
+```
+
+Still one other algorithm
+
+```{r rf}
+# Algorithm 5: Random forest
+# Training & predicting - trials with mtry values from 3 to 9 (step: 2)
+set.seed(1234, sample.kind = "Rounding")
+tuning <- data.frame(mtry=seq(3, 9, 2))
+train_rf <- train(X_train, y_train, method = "rf", tuneGrid = tuning, importance=TRUE)
+train_rf$bestTune
+rf_preds <- factor(predict(train_rf, X_test))
+cm <- confusionMatrix(data = rf_preds,reference = y_test)
+acc <- cm$overall[['Accuracy']]
+acc
+specif <- sensitivity(rf_preds, y_test, positive= "1")
+specif
+# Store the results of this algorithm
+algorithm_results <- bind_rows(algorithm_results, 
+                               data_frame(method="5: Random forest", 
                                           accuracy=acc, 
                                           specificity=specif))
 ```
@@ -276,7 +301,7 @@ algorithm_results <- bind_rows(algorithm_results,
 
 The results over all algorithms used here look the following:
 
-´´´{r results}
+```{r results}
 algorithm_results
 ```
 
